@@ -6,46 +6,66 @@
 //
 // String 
 //
-String string(uint8_t *string, size_t length)
+String string(uint8_t *content, size_t length)
 {
-	String str = { string, length };
-	return str;
+	String result = { content, length };
+	return result; 
 }
 
 String string_range(uint8_t *first_char, uint8_t *last_char)
 {
-	String str = { first_char, (uint64_t)(last_char - first_char)};
-	return str;
+	String result = { first_char, (uint64_t)(last_char - first_char) };
+	return result; 
 }
 
-String cstring_to_string(uint8_t *cstring)
+String string_cstring(uint8_t *cstring)
 {
 	uint8_t *ptr = cstring;
 	for(; *ptr != 0; ptr += 1);
 	return string_range(cstring, ptr);
 }
 
+void string_list_push (Arena *arena, StringList *list, String string)
+{
+	StringNode node = { string, NULL, 0 }; 
+
+	StringNode *ptr =
+		(StringNode*) arena_alloc(arena, (sizeof(StringNode) + string.length));
+
+	if (list->first == NULL) 
+		list->first = list->last = ptr;
+	else 
+		list->last->next = ptr;
+		
+	memcpy(ptr, &node, (sizeof(StringNode) + string.length));
+
+	list->last = ptr;
+	list->total_length += string.length;
+	list->node_count   += 1;
+}
+
 //
 // Memory
 //
-void arena_init(Arena *dst, void *src, size_t size)
+void arena_init(Arena *arena, void *buffer, size_t size)
 {
 	ASSERT(size > 0);
 
-	dst->back_buffer = src;
-	dst->size        = size;
-	dst->offset      = 0;
+	arena->buffer = (uint8_t*) buffer;
+	arena->size   = size;
+	arena->offset = 0;
 }
 
-void * arena_alloc(Arena *arena, size_t block_size)
+void * arena_alloc(Arena *arena, size_t size)
 {
-	ASSERT(block_size > 0);
+	ASSERT(size > 0);
 
-	if (arena->offset + block_size <= arena->size) {
-		void *ptr = (uint64_t) arena->back_buffer + arena->offset;
-		arena->offset += block_size;
+	// TODO(rhjr): Fix memory alignment
+	if (arena->offset + size <= arena->size) {
+		void *ptr = (uint8_t*) arena->buffer + arena->offset;
+		arena->offset += size;
 
-		memset(ptr, 0, block_size);
+		memset(ptr, 0, size);
 		return ptr;
 	}
 
@@ -60,17 +80,15 @@ void arena_free(Arena *arena)
 //
 // I/O
 //
-uint32_t * io_read_file(Arena *dst, String *file_path)
+void * io_read_file(Arena *dst, String *src)
 {
-	// TODO(rene) Safe the contents of the file_path into an String object.
-	ASSERT(file_path->size > 0);
+	ASSERT(src->length > 0);
 
-	FILE    *file = NULL;
+	FILE    *file        = NULL;
 	uint32_t file_length = 0;
+	void    *result      = NULL;
 
-	uint8_t *result  = NULL;
-
-	file = fopen(file_path->string, "rb");
+	file = fopen(src->content, "rb");
 	if (file == NULL)
 		IO_RETURN_DEFER(NULL);
 
@@ -78,7 +96,7 @@ uint32_t * io_read_file(Arena *dst, String *file_path)
     file_length = ftell(file);
 	fseek(file, 0, SEEK_SET);
 
-	result = arena_alloc(dst, file_length);
+	result = (void*) arena_alloc(dst, file_length);
 	
 	uint32_t processed_chars =
 		fread(result, sizeof(uint8_t), file_length, file);
@@ -88,20 +106,20 @@ uint32_t * io_read_file(Arena *dst, String *file_path)
 defer:
     fclose(file);
 	return result;
-}
+}	
 
-uint32_t io_write_file(String *dst, void *src)
+uint32_t io_write_file(String *dst, String *src)
 {
-	ASSERT(dst->size > 0);
+	ASSERT(dst->length > 0);
 
 	FILE    *file   = NULL; 
 	uint32_t result = 0;
 
-	file = fopen(dst->string, "wb");
+	file = fopen(dst->content, "wb");
 	if (file == NULL)
 		IO_RETURN_DEFER(-1);
 
-	result = fwrite(src, sizeof(uint8_t), strlen(src), file);
+	result = fwrite(src->content, sizeof(uint8_t), src->length, file);
 	if (result == 0) 
 		IO_RETURN_DEFER(-1);
 
@@ -115,21 +133,41 @@ defer:
 //
 int main(int argc, char *argv[])
 {
-	if (argc < 2) {
-		exit(0);
-	}
+#define BUFFER_SIZE 1024 
 
-	const uint8_t buffer[1024];
-
-	String file = cstring_to_string(argv[1]);
-	String out  = cstring_to_string(argv[2]);
-
+	uint8_t buffer[BUFFER_SIZE];
+	memset(&buffer, 0, BUFFER_SIZE);
 	Arena arena = {0};
-	arena_init(&arena, &buffer, 1024);
 
-	uint32_t *content = io_read_file(&arena, &file);
+	arena_init(&arena, &buffer, BUFFER_SIZE);
 
-	uint8_t result = io_write_file(&out, content);
+	StringList list = { 0 };
+	String str1   = { "TEST 1", 6 };
+	String str2   = { "TEST 2", 6 };
+	String str3   = { "TEST 3", 6 };
+
+	StringNode node = {0}; 
+	memcpy(&node.string, &str1, (sizeof(String) + str1.length));
+
+	StringNode *ptr =
+		(StringNode*) arena_alloc(
+			&arena, (sizeof(StringNode) + str1.length));
+
+
+	memcpy(ptr, &node, (sizeof(StringNode) + str1.length));
+
+	string_list_push(&arena, &list, str1);
+	string_list_push(&arena, &list, str2);
+	string_list_push(&arena, &list, str3);
+
+	for(StringNode *current = list.first;
+		current != NULL;
+		current  = current->next)
+	{
+		printf("List content: %s", current->string.content);
+		printf("\n");
+	}
 
 	return 0;
 }
+
