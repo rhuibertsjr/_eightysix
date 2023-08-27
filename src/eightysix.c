@@ -33,13 +33,12 @@ void string_list_push (Arena *arena, StringList *list, String string)
 {
 	// TODO(rhjr): Now if the string that should be used gets out of scope,
 	//then the pointer to that string is dangeling.
+	ASSERT(string.length != 0);
+	ASSERT(string.length <= 32);
 
 	StringNode node = {0};
-	node.string.content = string.content;
+	strncpy(&node.string.content, &string.content, string.length);
 	node.string.length  = string.length;
-
-	printf("String content: %s\n", node.string.content);
-	printf("String size: %d\n",    node.string.length);
 
 	uint8_t node_size = sizeof(StringNode);
 
@@ -152,7 +151,7 @@ int main(int argc, char *argv[])
 	memset(&buffer, 0, BUFFER_SIZE);
 
 	StringList list = { 0 };
-	String str1   = { "TEST 1", 105 };
+	String str1   = { "Daar ga je man", 14 };
 	String str2   = { "TEST 2", 6 };
 	String str3   = { "TEST 3", 6 };
 
@@ -164,7 +163,12 @@ int main(int argc, char *argv[])
 		current != NULL;
 		current  = current->next)
 	{
-		printf("List content: %s", current->string.content);
+		printf("List content: ");
+		for (uint8_t i = 0; i < current->string.length; i++) {
+			printf("%c", current->string.content[i]);
+		}
+		printf("\n");
+
 		printf("List size: %d", current->string.length);
 
 		printf("\n");

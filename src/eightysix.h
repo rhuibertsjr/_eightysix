@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 #ifdef DEBUG
-    #define ASSERT(cond) do { if (!(cond)) exit(0); } while(0)
+    #define ASSERT(cond) do { if (!(cond)) exit(134); } while(0)
 #else
     #define ASSERT(cond)
 #endif
@@ -31,13 +31,13 @@ void   arena_free  (Arena *arena);
 // Strings
 //     - NOTE Should be treated as an immutable type.
 //
+#define STRING_MAX_BUFFER_SIZE 32 
+
 typedef struct String String;
 struct String {
-	uint8_t *content;
+	uint8_t content[STRING_MAX_BUFFER_SIZE];
 	uint8_t length;
 };
-
-#define StringNodeSize 12
 
 typedef struct StringNode StringNode;
 struct StringNode {
