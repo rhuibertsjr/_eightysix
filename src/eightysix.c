@@ -3,10 +3,14 @@
 #include <stdio.h>
 #include <string.h>
 
+#define BUFFER_SIZE 1024 
+
+uint8_t buffer[BUFFER_SIZE];
+
 //
 // String 
 //
-String string(uint8_t *content, size_t length)
+String string(uint8_t *content, uint8_t length)
 {
 	String result = { content, length };
 	return result; 
@@ -27,19 +31,28 @@ String string_cstring(uint8_t *cstring)
 
 void string_list_push (Arena *arena, StringList *list, String string)
 {
-	StringNode node = { string, NULL, 0 }; 
+	// TODO(rhjr): Now if the string that should be used gets out of scope,
+	//then the pointer to that string is dangeling.
 
-	StringNode *ptr =
-		(StringNode*) arena_alloc(arena, (sizeof(StringNode) + string.length));
+	StringNode node = {0};
+	node.string.content = string.content;
+	node.string.length  = string.length;
 
+	printf("String content: %s\n", node.string.content);
+	printf("String size: %d\n",    node.string.length);
+
+	uint8_t node_size = sizeof(StringNode);
+
+	uint8_t *ptr = (uint8_t*) arena_alloc(arena, node_size);
 	if (list->first == NULL) 
 		list->first = list->last = ptr;
-	else 
+	else {
 		list->last->next = ptr;
+		list->last = ptr;
+	}
 		
-	memcpy(ptr, &node, (sizeof(StringNode) + string.length));
+	memcpy(ptr, &node, node_size);
 
-	list->last = ptr;
 	list->total_length += string.length;
 	list->node_count   += 1;
 }
@@ -133,28 +146,15 @@ defer:
 //
 int main(int argc, char *argv[])
 {
-#define BUFFER_SIZE 1024 
-
-	uint8_t buffer[BUFFER_SIZE];
-	memset(&buffer, 0, BUFFER_SIZE);
 	Arena arena = {0};
-
 	arena_init(&arena, &buffer, BUFFER_SIZE);
 
+	memset(&buffer, 0, BUFFER_SIZE);
+
 	StringList list = { 0 };
-	String str1   = { "TEST 1", 6 };
+	String str1   = { "TEST 1", 105 };
 	String str2   = { "TEST 2", 6 };
 	String str3   = { "TEST 3", 6 };
-
-	StringNode node = {0}; 
-	memcpy(&node.string, &str1, (sizeof(String) + str1.length));
-
-	StringNode *ptr =
-		(StringNode*) arena_alloc(
-			&arena, (sizeof(StringNode) + str1.length));
-
-
-	memcpy(ptr, &node, (sizeof(StringNode) + str1.length));
 
 	string_list_push(&arena, &list, str1);
 	string_list_push(&arena, &list, str2);
@@ -165,6 +165,8 @@ int main(int argc, char *argv[])
 		current  = current->next)
 	{
 		printf("List content: %s", current->string.content);
+		printf("List size: %d", current->string.length);
+
 		printf("\n");
 	}
 

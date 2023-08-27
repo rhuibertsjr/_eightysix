@@ -43,15 +43,14 @@ typedef struct StringNode StringNode;
 struct StringNode {
 	String string;
 	StringNode *next;
-	uint8_t padding;
 };
 
 typedef struct StringList StringList;
 struct StringList {
 	StringNode *first;
 	StringNode *last;
-	size_t node_count; 
-	size_t total_length; 
+	uint8_t node_count; 
+	uint8_t total_length; 
 };
 
 String string (uint8_t *string, size_t length);
