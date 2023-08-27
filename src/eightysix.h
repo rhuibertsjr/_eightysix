@@ -66,7 +66,7 @@ String string_list_join (Arena *arena, StringList *list);
 // I/O
 //
 void *   io_read_file  (Arena *dst, String *file_path);
-uint32_t io_write_file (String *dst, String *src);
+uint32_t io_write_file (const char *dst, String *src);
 
 //
 // 8086 Machine instruction 

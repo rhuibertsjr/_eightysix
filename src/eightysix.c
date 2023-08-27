@@ -18,11 +18,14 @@ String string(uint8_t *content, uint8_t length)
 
 String string_range(uint8_t *first_char, uint8_t *last_char)
 {
-	String result = { first_char, (uint64_t)(last_char - first_char) };
+	String result;
+	result.length = (uint64_t)(last_char - first_char);
+	strncpy(&result.content, *first_char, result.length);
+
 	return result; 
 }
 
-String string_cstring(uint8_t *cstring)
+String string_cstring(const char *cstring)
 {
 	uint8_t *ptr = cstring;
 	for(; *ptr != 0; ptr += 1);
@@ -31,18 +34,18 @@ String string_cstring(uint8_t *cstring)
 
 void string_list_push (Arena *arena, StringList *list, String string)
 {
-	// TODO(rhjr): Now if the string that should be used gets out of scope,
-	//then the pointer to that string is dangeling.
 	ASSERT(string.length != 0);
 	ASSERT(string.length <= 32);
 
-	StringNode node = {0};
-	strncpy(&node.string.content, &string.content, string.length);
+	StringNode node      = {0};
+	uint8_t    node_size = sizeof(StringNode);
+
 	node.string.length  = string.length;
 
-	uint8_t node_size = sizeof(StringNode);
+	strncpy(&node.string.content, &string.content, string.length);
 
 	uint8_t *ptr = (uint8_t*) arena_alloc(arena, node_size);
+
 	if (list->first == NULL) 
 		list->first = list->last = ptr;
 	else {
@@ -54,6 +57,37 @@ void string_list_push (Arena *arena, StringList *list, String string)
 
 	list->total_length += string.length;
 	list->node_count   += 1;
+}
+
+String string_list_join(Arena *arena, StringList *list)
+{
+	String result = {0};
+
+	uint8_t length = list->total_length + (list->node_count * 2);
+
+	// NOTE(rhjr): Total length + joint character '\r\n' (Windows).
+	uint8_t *str =
+		(uint8_t*) arena_alloc(arena, length);
+	uint8_t *ptr = str; // NOTE(rhjr) Used to iterate. 
+
+	for(StringNode *current  = list->first;
+		current != NULL;
+		current  = current->next)
+	{
+		memcpy(ptr, current->string.content, current->string.length);
+		ptr += current->string.length;
+
+		//next line
+		*ptr++ = (uint8_t) '\r';
+		*ptr   = (uint8_t) '\n';
+	}
+
+	*ptr++ = (uint8_t) '\0';
+
+	memcpy(&result.content, str, length);
+	result.length = list->total_length;
+
+	return result;
 }
 
 //
@@ -120,14 +154,12 @@ defer:
 	return result;
 }	
 
-uint32_t io_write_file(String *dst, String *src)
+uint32_t io_write_file (const char *dst, String *src)
 {
-	ASSERT(dst->length > 0);
-
 	FILE    *file   = NULL; 
 	uint32_t result = 0;
 
-	file = fopen(dst->content, "wb");
+	file = fopen(dst, "wb");
 	if (file == NULL)
 		IO_RETURN_DEFER(-1);
 
@@ -146,7 +178,10 @@ defer:
 int main(int argc, char *argv[])
 {
 	Arena arena = {0};
-	arena_init(&arena, &buffer, BUFFER_SIZE);
+	arena_init(&arena, &buffer, BUFFER_SIZE / 2);
+
+	Arena write = {0};
+	arena_init(&write, &buffer[BUFFER_SIZE / 2], BUFFER_SIZE / 2);
 
 	memset(&buffer, 0, BUFFER_SIZE);
 
@@ -173,6 +208,10 @@ int main(int argc, char *argv[])
 
 		printf("\n");
 	}
+
+	String result = string_list_join(&write, &list);
+
+	io_write_file("test.txt", &result);
 
 	return 0;
 }
