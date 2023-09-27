@@ -1,21 +1,14 @@
-
 #ifndef EIGHTYSIX_H
 #define EIGHTYSIX_H
 
 #include <stdint.h>
 #include <stdlib.h>
 
-#ifdef DEBUG
-    #define ASSERT(cond) do { if (!(cond)) exit(134); } while(0)
-#else
-    #define ASSERT(cond)
-#endif
-
 #define IO_RETURN_DEFER(value) do { result = value; goto defer; } while(0)
 
-//
-// Arena
-//
+//- rhjr: arena
+#define ARENA_DEFAULT_COMMIT_SIZE 1024
+
 typedef struct Arena Arena;
 struct Arena {
 	uint8_t *buffer;
@@ -27,74 +20,43 @@ void   arena_init  (Arena *arena, void *buffer, size_t size);
 void * arena_alloc (Arena *arena, size_t size);
 void   arena_free  (Arena *arena);
 
-//
-// Strings
-//     - NOTE Should be treated as an immutable type.
-//
-#define STRING_MAX_BUFFER_SIZE 32 
 
-typedef struct String String;
-struct String {
-	uint8_t content[STRING_MAX_BUFFER_SIZE];
+//- rhjr: strings
+typedef struct String8 String8;
+struct String8 {
+	uint8_t *content;
 	uint8_t length;
 };
 
-typedef struct StringNode StringNode;
-struct StringNode {
-	String string;
-	StringNode *next;
+typedef struct String8Node String8Node;
+struct String8Node {
+	String8 string;
+	String8Node *next;
 };
 
-typedef struct StringList StringList;
-struct StringList {
-	StringNode *first;
-	StringNode *last;
+typedef struct String8List String8List;
+struct String8List {
+	String8Node *first;
+	String8Node *last;
 	uint8_t node_count; 
 	uint8_t total_length; 
 };
 
-String string (uint8_t *string, size_t length);
+// rhjr: constructors
+String8 str8 (uint8_t *string, size_t length);
 
-// Helper functions
-String string_range   (uint8_t *first_char, uint8_t *last_char);
-String string_cstring (uint8_t *cstring);
+#define str8_lit(string, length) str8((uint8_t*)(string), length)
 
-void   string_list_push (Arena *arena, StringList *list, String string);
-String string_list_join (Arena *arena, StringList *list);
+// rhjr: helpers
+String8 str8_range   (uint8_t *first_char, uint8_t *last_char);
+String8 str8_cstring (uint8_t *cstring);
 
-//
-// I/O
-//
-void *   io_read_file  (Arena *dst, String *file_path);
-uint32_t io_write_file (const char *dst, String *src);
-
-//
-// 8086 Machine instruction 
-//
-typedef struct Instf Instf;
-struct Instf {
-	uint8_t opcode;    // See Table 4-20 (8086 manual).
-	uint8_t flags;
-};
-
-// Instruction opcode (Table 4-12). 
-#define OPC_MOV 0b100010
-
-// Instruction single-bit field (Table 4-8).
+void    str8_list_push (Arena *arena, String8List *list, String8 string);
+String8 str8_list_join (Arena *arena, String8List *list);
 
 
-// Instruction decoding
-String instr_decode(Instf instruction);
-
-//
-// Registers
-//
-typedef enum Reg Reg;
-enum Reg {
-	REG_A = 0x0,
-	REG_B,
-	REG_C,
-	REG_END
-};
+//- rhjr: io
+void *   io_read_file  (Arena *dst, String8 *file_path);
+uint32_t io_write_file (const char *dst, String8 *src);
 
 #endif 
