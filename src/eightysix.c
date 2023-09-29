@@ -178,22 +178,58 @@ void inst_decoding(Arena *arena, String8List *result, Inst *instruction)
   const uint32_t buffer_size = 10;
   String8 output = {0};
 
-  uint8_t opcode = 0b100010;
-  const char* opcode_c = "mov";
-  const char* reg1_c = "ax";
-  const char* reg2_c = "bx";
+  // rhjr: assembly mnemonics
+  char *opcode_mnemonic;
+  char *operand1_mnemonic = "";
+  char *operand2_mnemonic = "";
 
+  char *register_lookup_table[] = {
+    "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"};
+  char *register_lookup_table_wide[] = {
+    "ax", "cx", "dx", "bx", "sp", "bp", "si", "di"};
+
+  //- rhjr: decoding
+  uint8_t opcode = instruction->opcode >> 2;
+  uint8_t dest, width, mod;
+  uint8_t reg1, reg2;
+
+  switch(opcode)
+  {
+    case MOV:
+    { 
+      opcode_mnemonic = "mov";
+      dest  = instruction->opcode & 0b00000010;
+      width = instruction->opcode & 0b00000001;
+
+      reg1 = (instruction->operands & 0b00111000) >> 3;
+      reg2 = instruction->operands & 0b00000111;
+
+      mod = (instruction->operands & 0b11000000) >> 6;
+
+      // rhjr: operand1 -> destination, operand2 -> source.
+      operand1_mnemonic = (width == 0) ? register_lookup_table[reg2] :
+                          register_lookup_table_wide[reg2];
+
+      operand2_mnemonic = (width == 0) ? register_lookup_table[reg1] :
+                          register_lookup_table_wide[reg1];
+    }
+    break;
+  };
+
+  //- rhjr: instruction construction
   char* str = (char*) arena_alloc(arena, buffer_size);
   char** ptr = &str;
 
-  sprintf(*ptr, "%s %s, %s", opcode_c, reg1_c, reg2_c);
+  sprintf(*ptr, "%s %s, %s",
+                opcode_mnemonic, operand1_mnemonic, operand2_mnemonic);
+
   ptr += buffer_size;
   *ptr = '\0';
 
   output.content = (uint8_t*) str;
   output.length = 10;
 
-  str8_list_push(arena, result, str8_lit("bits 16", 7));
+  str8_list_push(arena, result, str8_lit("bits 16\r\n", 9));
   str8_list_push(arena, result, output);
 }
 

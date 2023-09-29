@@ -65,6 +65,13 @@ uint32_t io_write_file (const char *dst, String8 *src);
 
 
 //- rhjr: instruction decoding
+typedef enum InstSet InstSet;
+enum InstSet
+{
+  MOV = 34, // 0b100010
+  END
+};
+
 typedef struct Inst Inst;
 struct Inst
 {
