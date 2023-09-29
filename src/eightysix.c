@@ -114,13 +114,14 @@ arena_free(Arena *arena)
 
 //- rhjr: io
 void *
-io_read_file(Arena *dst, String8 *src)
+io_read_file(Arena *dst, const char* src)
 {
 	FILE    *file        = NULL;
 	uint32_t file_length = 0;
 	void    *result      = NULL;
 
-	file = fopen((const char*) src->content, "rb");
+	file = fopen(src, "rb");
+
 	if (file == NULL)
   {
 	  IO_RETURN_DEFER(NULL);
@@ -152,6 +153,7 @@ io_write_file (const char *dst, String8 *src)
 	uint32_t result = 0;
 
 	file = fopen(dst, "wb");
+
 	if (file == NULL)
   {
 	  IO_RETURN_DEFER(-1);
@@ -170,33 +172,54 @@ io_write_file (const char *dst, String8 *src)
 }
 
 
+//- rhjr: instruction decoding
+void inst_decoding(Arena *arena, String8List *result, Inst *instruction)
+{
+  const uint32_t buffer_size = 10;
+  String8 output = {0};
+
+  uint8_t opcode = 0b100010;
+  const char* opcode_c = "mov";
+  const char* reg1_c = "ax";
+  const char* reg2_c = "bx";
+
+  char* str = (char*) arena_alloc(arena, buffer_size);
+  char** ptr = &str;
+
+  sprintf(*ptr, "%s %s, %s", opcode_c, reg1_c, reg2_c);
+  ptr += buffer_size;
+  *ptr = '\0';
+
+  output.content = (uint8_t*) str;
+  output.length = 10;
+
+  str8_list_push(arena, result, str8_lit("bits 16", 7));
+  str8_list_push(arena, result, output);
+}
+
+
 //- rhjr: eightysix 
 int
 main(int argc, char *argv[])
 {
-  if (argc < 2)
+  if (argc < 3)
   {
-    printf("(EightyOne) Usage: '%s [FILE]'\n", argv[0]);
+    printf("(EightyOne) Usage: '%s [DEST FILE] [SOURCE FILE]'\n", argv[0]);
+    printf("  - Make sure you have provided a destination and source file.\n");
     printf("  - Please enter a valid file name.\n");
     exit(0);
   }
 
   Arena arena = {0};
-  arena_init(&arena, &buffer, ARENA_DEFAULT_COMMIT_SIZE);
-
   String8List list = {0};
 
-  str8_list_push(&arena, &list, str8_lit("bits 16",     7));
-  str8_list_push(&arena, &list, str8_lit("mov cx, dx", 10));
-  str8_list_push(&arena, &list, str8_lit("mov ch, ah", 10));
-  str8_list_push(&arena, &list, str8_lit("mov dx, bx", 10));
-  str8_list_push(&arena, &list, str8_lit("mov ix, bx", 10));
-  str8_list_push(&arena, &list, str8_lit("mov il, dx", 10));
-  str8_list_push(&arena, &list, str8_lit("mov bx, bx", 10));
+  arena_init(&arena, &buffer, ARENA_DEFAULT_COMMIT_SIZE);
 
-  String8 result = str8_list_join(&arena, &list);
+  Inst *result = (Inst*) io_read_file(&arena, argv[2]);
+  inst_decoding(&arena, &list, result);
 
-  io_write_file(argv[1], &result);
+  String8 output = str8_list_join(&arena, &list);
+  io_write_file(argv[1], &output);
 
 	return 0;
 }
