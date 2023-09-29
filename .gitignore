@@ -1,4 +1,5 @@
 bin/
 *.obj
 
-*.txt
+*.asm
+!/res/listings/*.asm
