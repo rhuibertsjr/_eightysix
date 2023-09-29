@@ -60,8 +60,8 @@ String8 str8_list_join (Arena *arena, String8List *list);
 
 
 //- rhjr: io
-void *   io_read_file  (Arena *dst, const char *file_path);
-uint32_t io_write_file (const char *dst, String8 *src);
+void *   io_read_file (Arena *dst, const char *file_path, uint32_t *file_size);
+uint32_t io_write_file(const char *dst, String8 *src);
 
 
 //- rhjr: instruction decoding
@@ -79,6 +79,8 @@ struct Inst
   uint8_t operands;
 };
 
-void inst_decoding(Arena *arena, String8List *result, Inst *instruction);
+void inst_decoding(
+  Arena *arena, String8List *result, Inst *instruction,
+  uint32_t instruction_amount);
 
 #endif 

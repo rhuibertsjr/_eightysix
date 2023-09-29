@@ -114,13 +114,13 @@ arena_free(Arena *arena)
 
 //- rhjr: io
 void *
-io_read_file(Arena *dst, const char* src)
+io_read_file(Arena *dst, const char *file_path, uint32_t *file_size)
 {
 	FILE    *file        = NULL;
 	uint32_t file_length = 0;
 	void    *result      = NULL;
 
-	file = fopen(src, "rb");
+	file = fopen(file_path, "rb");
 
 	if (file == NULL)
   {
@@ -135,6 +135,8 @@ io_read_file(Arena *dst, const char* src)
 	
 	uint32_t processed_chars =
 		fread(result, sizeof(uint8_t), file_length, file);
+
+  *file_size = file_length;
 
 	if (processed_chars == 0)
   {
@@ -173,7 +175,8 @@ io_write_file (const char *dst, String8 *src)
 
 
 //- rhjr: instruction decoding
-void inst_decoding(Arena *arena, String8List *result, Inst *instruction)
+void inst_decoding(Arena *arena, String8List *result, Inst *instruction,
+  uint32_t instruction_amount)
 {
   const uint32_t buffer_size = 10;
 
@@ -237,7 +240,7 @@ void inst_decoding(Arena *arena, String8List *result, Inst *instruction)
     str8_list_push(arena, result, decoded_instruction);
     instruction += 1;
 
-  } while(++i < 11);
+  } while(++i < (instruction_amount / 2));
 
 }
 
@@ -259,8 +262,9 @@ main(int argc, char *argv[])
 
   arena_init(&arena, &buffer, ARENA_DEFAULT_COMMIT_SIZE);
 
-  Inst *result = (Inst*) io_read_file(&arena, argv[2]);
-  inst_decoding(&arena, &list, result);
+  uint32_t instructions = 0;
+  Inst *result = (Inst*) io_read_file(&arena, argv[2], &instructions);
+  inst_decoding(&arena, &list, result, instructions);
 
   String8 output = str8_list_join(&arena, &list);
   io_write_file(argv[1], &output);
